@@ -82,6 +82,11 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .filter-btn { font-family: var(--mono); font-size: 0.7rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--paper); color: var(--mid); cursor: pointer; transition: all 0.2s; white-space: nowrap; }
 .filter-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 
+/* Import / Export */
+.io-toolbar { padding: 8px 15px 0; display: flex; gap: 8px; }
+.io-btn { font-family: var(--mono); font-size: 0.7rem; font-weight: 700; padding: 8px 14px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--paper); color: var(--ink); cursor: pointer; transition: all 0.2s; flex: 1; text-align: center; }
+.io-btn:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
 /* Navigation focus — boutons latéraux */
 .focus-nav-side { position: absolute; top: 50%; transform: translateY(-50%); z-index: 10; }
 .focus-nav-left { left: 16px; }
@@ -173,6 +178,11 @@ input:focus, textarea:focus { border-color: var(--accent); }
     <input class="search-input" type="text" id="search-input" placeholder="🔍 Rechercher par titre…" oninput="render()">
     <button class="filter-btn active" id="filter-all" onclick="setFilter('all', this)">Tous</button>
     <button class="filter-btn" id="filter-fav" onclick="setFilter('fav', this)">⭐ Favoris</button>
+  </div>
+  <div class="io-toolbar">
+    <button class="io-btn" onclick="exportJSON()">⬇ Exporter .json</button>
+    <button class="io-btn" onclick="document.getElementById('import-input').click()">⬆ Importer .json</button>
+    <input type="file" id="import-input" style="display:none" accept=".json" onchange="importJSON(event)">
   </div>
   <div id="display-grid" class="gallery-grid"></div>
 </main>
@@ -562,6 +572,42 @@ function showToast(m) {
   t.innerText = m;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ─── Export / Import JSON ───────────────────────────────────────────────────
+function exportJSON() {
+  if (items.length === 0) return showToast('Aucun QR à exporter');
+  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'qr-pro-backup.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('✓ Export réussi !');
+}
+
+function importJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) return showToast('⚠ Fichier invalide');
+      // Fusion : on ajoute sans écraser les QR existants (par id)
+      const existingIds = new Set(items.map(i => i.id));
+      const newItems = data.filter(i => i.id && i.title && i.img && !existingIds.has(i.id));
+      items = [...newItems, ...items];
+      saveItems();
+      updateCount();
+      render();
+      showToast(`✓ ${newItems.length} QR importé(s)`);
+    } catch {
+      showToast('⚠ Fichier JSON invalide');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
 }
 
 // ─── Init ───────────────────────────────────────────────────────────────────
