@@ -85,18 +85,21 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .filter-btn { font-family: var(--mono); font-size: 0.7rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--paper); color: var(--mid); cursor: pointer; transition: all 0.2s; white-space: nowrap; }
 .filter-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 
-/* Navigation focus */
-.focus-nav { display: flex; align-items: center; gap: 12px; width: 100%; justify-content: center; }
-.nav-btn { background: var(--paper); border: 1.5px solid var(--border); border-radius: 50%; width: 40px; height: 40px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
-.nav-btn:hover { border-color: var(--ink); background: var(--ink); color: var(--paper); }
-.nav-btn:disabled { opacity: 0.3; cursor: default; }
+/* Navigation focus — boutons latéraux */
+.focus-nav-side { position: absolute; top: 50%; transform: translateY(-50%); z-index: 10; }
+.focus-nav-left { left: 16px; }
+.focus-nav-right { right: 16px; }
+.nav-btn { background: var(--paper); border: 2px solid var(--ink); border-radius: 50%; width: 56px; height: 56px; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
+.nav-btn:hover { background: var(--ink); color: var(--paper); }
+.nav-btn:disabled { opacity: 0.2; cursor: default; box-shadow: none; }
+.focus-top-bar { display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%; }
 .nav-counter { font-family: var(--mono); font-size: 0.75rem; color: var(--mid); }
-.focus-fav-btn { background: none; border: 1.5px solid var(--border); border-radius: 50%; width: 40px; height: 40px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.focus-fav-btn { background: none; border: 1.5px solid var(--border); border-radius: 50%; width: 36px; height: 36px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .focus-fav-btn:hover { border-color: var(--accent); }
 
 /* Focus overlay */
 .focus-overlay { position: fixed; inset:0; background: rgba(245, 242, 235, 0.98); backdrop-filter: blur(8px); z-index: 200; display: none; flex-direction: column; align-items:center; justify-content: center; padding: 20px; }
-.focus-card { background: var(--paper); border: 2px solid var(--ink); border-radius: 24px; padding: 40px 15px; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; gap: 20px; position: relative; }
+.focus-card { background: var(--paper); border: 2px solid var(--ink); border-radius: 24px; padding: 30px 15px; width: 100%; max-width: 340px; display: flex; flex-direction: column; align-items: center; gap: 20px; position: relative; }
 .focus-actions { display: flex; gap: 10px; width: 100%; }
 
 #temp-qr { position: absolute; left: -9999px; }
@@ -179,11 +182,13 @@ input:focus, textarea:focus { border-color: var(--accent); }
 
 <!-- Focus / détail -->
 <div id="focus-mode" class="focus-overlay">
+  <!-- Boutons latéraux -->
+  <button class="nav-btn focus-nav-side focus-nav-left" id="nav-prev" onclick="navigateFocus(-1)">←</button>
+  <button class="nav-btn focus-nav-side focus-nav-right" id="nav-next" onclick="navigateFocus(1)">→</button>
+
   <div class="focus-card">
-    <div class="focus-nav">
-      <button class="nav-btn" id="nav-prev" onclick="navigateFocus(-1)">←</button>
+    <div class="focus-top-bar">
       <span class="nav-counter" id="nav-counter">1 / 1</span>
-      <button class="nav-btn" id="nav-next" onclick="navigateFocus(1)">→</button>
       <button class="focus-fav-btn" id="focus-fav-btn" onclick="toggleFocusFav()" title="Favori">☆</button>
     </div>
     <h2 id="focus-title" style="font-size:1.3rem; font-weight:800; text-align:center;"></h2>
