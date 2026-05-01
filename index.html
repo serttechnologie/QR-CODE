@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>QRgen Studio</title>
+<title>QRgen Studio — V1</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
-<!-- Bibliothèque QRCode.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root {
@@ -15,6 +14,7 @@
 * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
 body { background:var(--bg); color:var(--ink); font-family:var(--sans); min-height:100vh; display:flex; flex-direction:column; overflow-x: hidden; }
 
+/* --- HEADER --- */
 header { border-bottom:2px solid var(--ink); padding:0 15px; display:flex; align-items:stretch; justify-content:space-between; background:var(--paper); position:sticky; top:0; z-index:100; height:60px; }
 .logo { display:flex; align-items:center; gap:8px; }
 .logo-icon { width:22px; height:22px; background:var(--ink); border-radius:4px; display:grid; grid-template-columns:1fr 1fr; gap:2px; padding:4px; }
@@ -26,36 +26,47 @@ nav { display:flex; }
 .tab.active { color:var(--ink); border-bottom-color:var(--accent); }
 .badge { background:var(--accent); color:white; border-radius:10px; padding:1px 6px; font-size:.6rem; margin-left:4px; }
 
+/* --- VIEWS --- */
 .view { display:none; animation: fadeIn 0.2s ease; }
 .view.active { display:block; }
 @keyframes fadeIn { from{opacity:0; transform:translateY(5px)} to{opacity:1; transform:translateY(0)} }
 
+/* --- CREATE --- */
 .create-wrap { max-width:500px; margin:0 auto; padding:30px 20px; display:flex; flex-direction:column; gap:20px; }
 .field-group { display:flex; flex-direction:column; gap:6px; }
 label { font-size:.8rem; font-weight:700; color:var(--mid); }
 input, textarea { font-family:var(--mono); font-size:16px; background:var(--paper); border:1.5px solid var(--border); border-radius:12px; padding:14px; width:100%; outline:none; }
-
 .btn-main { background:var(--ink); color:var(--paper); border:none; border-radius:14px; padding:18px; font-weight:800; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px; }
 
+/* --- GALLERY --- */
 .gallery-wrap { max-width:1000px; margin:0 auto; padding:15px; }
-.backup-zone { background: #efebe2; border: 1.5px dashed var(--border); padding: 10px; border-radius: 12px; margin-bottom: 15px; display: flex; gap: 8px; }
+.tool-bar { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+.backup-zone { background: #efebe2; border: 1.5px dashed var(--border); padding: 10px; border-radius: 12px; display: flex; gap: 8px; }
 .btn-small { flex: 1; padding: 10px; border-radius: 10px; font-size: 0.65rem; font-weight: 700; border: 1px solid var(--ink); background: var(--paper); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; }
 
-.gallery-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:12px; }
-.qr-card { background:var(--paper); border:1.5px solid var(--border); border-radius:14px; padding:10px; position:relative; cursor: pointer; text-align:center; transition: 0.2s; }
-.qr-card img { width:100%; border-radius:6px; margin-bottom:8px; display: block; }
+.filter-bar { display: flex; gap: 8px; }
+.f-btn { padding: 8px 16px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--paper); font-size: 0.75rem; font-weight: 700; cursor: pointer; }
+.f-btn.active { background: var(--ink); color: white; border-color: var(--ink); }
 
+.gallery-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:12px; }
+.qr-card { background:var(--paper); border:1.5px solid var(--border); border-radius:14px; padding:10px; position:relative; cursor: pointer; text-align:center; }
+.qr-card img { width:100%; border-radius:6px; margin-bottom:8px; display: block; }
+.qr-card h3 { font-size: 0.75rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fav-btn { position: absolute; top: 8px; right: 8px; background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--accent); z-index: 10; }
+
+/* --- FOCUS OVERLAY --- */
 .focus-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(245, 242, 235, 0.98); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 200; display: none; flex-direction: column; align-items:center; justify-content: center; padding: 20px; }
 .focus-container { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; max-width: 450px; }
-.nav-arrow { background: var(--ink); color: white; border: none; width: 40px; height: 40px; border-radius: 50%; flex-shrink:0; cursor: pointer; }
-.focus-card { background: var(--paper); border: 2px solid var(--ink); border-radius: 24px; padding: 25px 15px; width: 100%; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 15px; position: relative; box-shadow: 0 15px 40px rgba(0,0,0,0.1); }
+.nav-arrow { background: var(--ink); color: white; border: none; width: 42px; height: 42px; border-radius: 50%; flex-shrink:0; cursor: pointer; font-weight: bold; }
+.focus-card { background: var(--paper); border: 2px solid var(--ink); border-radius: 24px; padding: 30px 15px; width: 100%; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 15px; position: relative; box-shadow: 0 15px 40px rgba(0,0,0,0.1); }
 .qr-display-area { background: white; padding: 12px; border-radius: 12px; border: 1px solid var(--border); width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; }
 .qr-display-area img { width: 100%; height: 100%; }
+.focus-fav-toggle { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 1.8rem; color: var(--accent); cursor: pointer; }
 
 .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--ink); color:white; padding:10px 20px; border-radius:50px; font-size:0.75rem; z-index:1000; opacity:0; transition:0.3s; pointer-events:none; }
 .toast.show { opacity:1; }
 
-#temp-qr { position: absolute; left: -9999px; top: 0; background: white; padding: 20px; }
+#temp-qr { position: absolute; left: -9999px; top: 0; background: white; }
 </style>
 </head>
 <body>
@@ -71,13 +82,15 @@ input, textarea { font-family:var(--mono); font-size:16px; background:var(--pape
   </nav>
 </header>
 
-<div id="temp-qr"></div> <!-- Zone de rendu invisible -->
+<div id="temp-qr"></div>
 
+<!-- MODE FOCUS -->
 <div id="focus-mode" class="focus-overlay">
     <div class="focus-container">
         <button class="nav-arrow" onclick="navFocus(-1)">←</button>
         <div class="focus-card">
-            <h2 id="focus-title" style="font-size:1.1rem; font-weight:800; text-align:center;">Titre</h2>
+            <button class="focus-fav-toggle" id="focus-fav-btn">☆</button>
+            <h2 id="focus-title" style="font-size:1.1rem; font-weight:800; text-align:center; max-width: 80%;">Titre</h2>
             <div class="qr-display-area" id="focus-qr-display"></div>
             <p id="focus-text" style="font-family:var(--mono); font-size:0.65rem; color:var(--mid); text-align:center; word-break:break-all;"></p>
             <div style="display:flex; gap:8px; width:100%">
@@ -90,29 +103,37 @@ input, textarea { font-family:var(--mono); font-size:16px; background:var(--pape
     <button class="btn-main" style="margin-top:20px; padding:12px 30px;" onclick="closeFocus()">Fermer</button>
 </div>
 
+<!-- VUE CREATION -->
 <main id="view-create" class="view active">
   <div class="create-wrap">
     <h2 style="font-size:1.8rem; font-weight:800;">Nouveau <span style="color:var(--accent)">QR Code</span></h2>
     <div class="field-group">
       <label>Nom du QR</label>
-      <input type="text" id="in-title" placeholder="Ex: Menu Restaurant" maxlength="25">
+      <input type="text" id="in-title" placeholder="Ex: WiFi Maison" maxlength="25">
     </div>
     <div class="field-group">
       <label>Lien ou Texte</label>
       <textarea id="in-text" rows="3" placeholder="https://..."></textarea>
     </div>
-    <button class="btn-main" onclick="createNew()">Enregistrer dans la galerie</button>
+    <button class="btn-main" onclick="createNew()">Générer et Enregistrer</button>
   </div>
 </main>
 
+<!-- VUE GALERIE -->
 <main id="view-gallery" class="view">
   <div class="gallery-wrap">
-    <div class="backup-zone">
-        <button class="btn-small" onclick="exportData()">💾 Sauvegarder .json</button>
-        <label class="btn-small">📂 Restaurer <input type="file" style="display:none" accept=".json" onchange="importData(event)"></label>
+    <div class="tool-bar">
+        <div class="backup-zone">
+            <button class="btn-small" onclick="exportData()">💾 Sauvegarder</button>
+            <label class="btn-small">📂 Restaurer <input type="file" style="display:none" accept=".json" onchange="importData(event)"></label>
+        </div>
+        <div class="filter-bar">
+            <button class="f-btn active" id="f-all" onclick="setFilter('all')">Tous</button>
+            <button class="f-btn" id="f-fav" onclick="setFilter('fav')">★ Favoris</button>
+        </div>
     </div>
     <div id="display-grid" class="gallery-grid"></div>
-    <div id="empty-msg" style="display:none; text-align:center; padding:50px; color:var(--mid); font-size:0.8rem;">Aucun QR généré.</div>
+    <div id="empty-msg" style="display:none; text-align:center; padding:50px; color:var(--mid); font-size:0.8rem;">Aucun QR trouvé.</div>
   </div>
 </main>
 
@@ -121,6 +142,8 @@ input, textarea { font-family:var(--mono); font-size:16px; background:var(--pape
 <script>
 let items = JSON.parse(localStorage.getItem('qr_items_v1') || '[]');
 let currentFocusIdx = -1;
+let currentFilter = 'all';
+let filteredList = [];
 
 function save() {
     localStorage.setItem('qr_items_v1', JSON.stringify(items));
@@ -138,81 +161,82 @@ function switchView(v, btn) {
 function createNew() {
     const t = document.getElementById('in-title').value.trim();
     const txt = document.getElementById('in-text').value.trim();
-    if(!t || !txt) return showToast("Veuillez remplir les champs");
+    if(!t || !txt) return showToast("Champs vides !");
 
     const tempArea = document.getElementById('temp-qr');
-    tempArea.innerHTML = ""; // Clean
+    tempArea.innerHTML = ""; 
     
-    // Création du QR dans la zone invisible
-    new QRCode(tempArea, {
-        text: txt,
-        width: 256,
-        height: 256,
-        correctLevel: QRCode.CorrectLevel.H
-    });
+    new QRCode(tempArea, { text: txt, width: 400, height: 400, correctLevel: QRCode.CorrectLevel.H });
 
-    // On laisse un peu de temps au navigateur pour dessiner le QR (Important pour Redmi/Android)
     setTimeout(() => {
         const canvas = tempArea.querySelector('canvas');
         const img = tempArea.querySelector('img');
-        let finalImg = "";
-
-        if (img && img.src.startsWith('data:image')) {
-            finalImg = img.src;
-        } else if (canvas) {
-            finalImg = canvas.toDataURL("image/png");
-        }
+        let finalImg = (img && img.src.startsWith('data:image')) ? img.src : (canvas ? canvas.toDataURL("image/png") : "");
 
         if (finalImg) {
             items.unshift({ id: Date.now(), title: t, text: txt, img: finalImg, fav: false });
             save();
             document.getElementById('in-title').value = '';
             document.getElementById('in-text').value = '';
-            showToast("QR généré et ajouté !");
+            showToast("QR Ajouté !");
         } else {
-            showToast("Erreur de génération du QR");
+            showToast("Erreur de calcul...");
         }
-    }, 400); 
+    }, 450); 
+}
+
+function setFilter(f) {
+    currentFilter = f;
+    document.getElementById('f-all').classList.toggle('active', f === 'all');
+    document.getElementById('f-fav').classList.toggle('active', f === 'fav');
+    render();
 }
 
 function render() {
+    filteredList = items.filter(i => currentFilter === 'all' || i.fav);
     const cont = document.getElementById('display-grid');
     cont.innerHTML = '';
-    document.getElementById('empty-msg').style.display = items.length === 0 ? 'block' : 'none';
+    document.getElementById('empty-msg').style.display = filteredList.length === 0 ? 'block' : 'none';
 
-    items.forEach((item, index) => {
+    filteredList.forEach((item, index) => {
         const div = document.createElement('div');
         div.className = 'qr-card';
         div.onclick = () => openFocus(index);
-        div.innerHTML = `<img src="${item.img}"><h3>${item.title}</h3>`;
+        div.innerHTML = `
+            <button class="fav-btn" onclick="event.stopPropagation(); toggleFav(${item.id})">${item.fav?'★':'☆'}</button>
+            <img src="${item.img}">
+            <h3>${item.title}</h3>
+        `;
         cont.appendChild(div);
     });
 }
 
 function openFocus(index) {
-    if (index < 0 || index >= items.length) return;
+    if (index < 0 || index >= filteredList.length) return;
     currentFocusIdx = index;
-    const item = items[index];
+    const item = filteredList[index];
     
     document.getElementById('focus-title').textContent = item.title;
     document.getElementById('focus-text').textContent = item.text;
     document.getElementById('focus-qr-display').innerHTML = `<img src="${item.img}">`;
+    document.getElementById('focus-fav-btn').textContent = item.fav ? '★' : '☆';
     
+    document.getElementById('focus-fav-btn').onclick = () => {
+        toggleFav(item.id);
+        openFocus(currentFocusIdx);
+    };
+
     document.getElementById('focus-del').onclick = () => {
-        if(confirm("Supprimer ce QR ?")) {
-            items.splice(index, 1);
-            save();
-            render();
-            if(items.length > 0) openFocus(Math.min(index, items.length - 1));
+        if(confirm("Supprimer ?")) {
+            items = items.filter(i => i.id !== item.id);
+            save(); render();
+            if(filteredList.length > 0) openFocus(Math.min(index, filteredList.length - 1));
             else closeFocus();
         }
     };
 
     document.getElementById('focus-dl').onclick = () => {
-        const a = document.createElement('a');
-        a.href = item.img;
-        a.download = `${item.title}.png`;
-        a.click();
+        const a = document.createElement('a'); a.href = item.img; a.download = `${item.title}.png`; a.click();
     };
 
     document.getElementById('focus-mode').style.display = 'flex';
@@ -221,8 +245,8 @@ function openFocus(index) {
 
 function navFocus(dir) {
     let next = currentFocusIdx + dir;
-    if(next < 0) next = items.length - 1;
-    if(next >= items.length) next = 0;
+    if(next < 0) next = filteredList.length - 1;
+    if(next >= filteredList.length) next = 0;
     openFocus(next);
 }
 
@@ -232,8 +256,15 @@ function closeFocus() {
     render();
 }
 
+function toggleFav(id) {
+    const idx = items.findIndex(x => x.id === id);
+    items[idx].fav = !items[idx].fav;
+    save();
+    if(document.getElementById('focus-mode').style.display !== 'flex') render();
+}
+
 function exportData() {
-    if(!items.length) return showToast("Galerie vide");
+    if(!items.length) return;
     const blob = new Blob([JSON.stringify(items)], {type:'application/json'});
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -248,8 +279,8 @@ function importData(e) {
         try {
             items = JSON.parse(ev.target.result);
             save(); render();
-            showToast("Données importées !");
-        } catch(err) { showToast("Fichier invalide"); }
+            showToast("Import réussi !");
+        } catch(err) { showToast("Erreur fichier"); }
     };
     reader.readAsText(file);
 }
@@ -260,7 +291,6 @@ function showToast(m) {
     setTimeout(() => t.classList.remove('show'), 2000);
 }
 
-// Init
 document.getElementById('b-total').textContent = items.length;
 </script>
 </body>
