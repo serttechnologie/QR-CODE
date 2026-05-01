@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>QRgen Studio Ultra</title>
+<title>QR PRO</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -73,6 +73,27 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .storage-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.4s; }
 .storage-label { font-family: var(--mono); font-size: 0.65rem; color: var(--mid); white-space: nowrap; }
 
+/* Favoris */
+.fav-btn { position: absolute; top: 6px; left: 8px; background: none; border: none; font-size: 1rem; cursor: pointer; opacity: 0; transition: opacity 0.2s; line-height: 1; padding: 0; }
+.qr-card:hover .fav-btn { opacity: 1; }
+.qr-card.is-fav .fav-btn { opacity: 1; }
+
+/* Galerie toolbar */
+.gallery-toolbar { padding: 10px 15px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.search-input { font-family: var(--mono); font-size: 0.8rem; background: var(--paper); border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 12px; flex: 1; min-width: 120px; outline: none; transition: border-color 0.2s; }
+.search-input:focus { border-color: var(--accent); }
+.filter-btn { font-family: var(--mono); font-size: 0.7rem; font-weight: 700; padding: 8px 12px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--paper); color: var(--mid); cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.filter-btn.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+/* Navigation focus */
+.focus-nav { display: flex; align-items: center; gap: 12px; width: 100%; justify-content: center; }
+.nav-btn { background: var(--paper); border: 1.5px solid var(--border); border-radius: 50%; width: 40px; height: 40px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
+.nav-btn:hover { border-color: var(--ink); background: var(--ink); color: var(--paper); }
+.nav-btn:disabled { opacity: 0.3; cursor: default; }
+.nav-counter { font-family: var(--mono); font-size: 0.75rem; color: var(--mid); }
+.focus-fav-btn { background: none; border: 1.5px solid var(--border); border-radius: 50%; width: 40px; height: 40px; font-size: 1.1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.focus-fav-btn:hover { border-color: var(--accent); }
+
 /* Focus overlay */
 .focus-overlay { position: fixed; inset:0; background: rgba(245, 242, 235, 0.98); backdrop-filter: blur(8px); z-index: 200; display: none; flex-direction: column; align-items:center; justify-content: center; padding: 20px; }
 .focus-card { background: var(--paper); border: 2px solid var(--ink); border-radius: 24px; padding: 40px 15px; width: 100%; max-width: 400px; display: flex; flex-direction: column; align-items: center; gap: 20px; position: relative; }
@@ -88,7 +109,7 @@ input:focus, textarea:focus { border-color: var(--accent); }
 <header>
   <div class="logo">
     <div class="logo-icon"><span></span><span></span><span></span><span></span></div>
-    <h1>QRgen Studio</h1>
+    <h1>QR PRO</h1>
   </div>
   <nav>
     <button class="tab active" onclick="switchView('create', this)">Créer</button>
@@ -148,12 +169,23 @@ input:focus, textarea:focus { border-color: var(--accent); }
     <div class="storage-bar"><div class="storage-fill" id="storage-fill"></div></div>
     <span class="storage-label" id="storage-label">0%</span>
   </div>
+  <div class="gallery-toolbar">
+    <input class="search-input" type="text" id="search-input" placeholder="🔍 Rechercher par titre…" oninput="render()">
+    <button class="filter-btn active" id="filter-all" onclick="setFilter('all', this)">Tous</button>
+    <button class="filter-btn" id="filter-fav" onclick="setFilter('fav', this)">⭐ Favoris</button>
+  </div>
   <div id="display-grid" class="gallery-grid"></div>
 </main>
 
 <!-- Focus / détail -->
 <div id="focus-mode" class="focus-overlay">
   <div class="focus-card">
+    <div class="focus-nav">
+      <button class="nav-btn" id="nav-prev" onclick="navigateFocus(-1)">←</button>
+      <span class="nav-counter" id="nav-counter">1 / 1</span>
+      <button class="nav-btn" id="nav-next" onclick="navigateFocus(1)">→</button>
+      <button class="focus-fav-btn" id="focus-fav-btn" onclick="toggleFocusFav()" title="Favori">☆</button>
+    </div>
     <h2 id="focus-title" style="font-size:1.3rem; font-weight:800; text-align:center;"></h2>
     <div id="focus-qr-display" style="background:white; padding:10px; border-radius:10px;"></div>
     <div class="focus-actions">
@@ -170,7 +202,9 @@ input:focus, textarea:focus { border-color: var(--accent); }
 let items = JSON.parse(localStorage.getItem('qr_items_v1') || '[]');
 let cropper;
 let focusImgSrc = '';
-const STORAGE_LIMIT_KB = 3500; // ~3.5 Mo pour laisser de la marge
+let focusIdx = 0;
+let currentFilter = 'all';
+const STORAGE_LIMIT_KB = 3500;
 
 // ─── Navigation ────────────────────────────────────────────────────────────
 function switchView(v, btn) {
@@ -179,6 +213,25 @@ function switchView(v, btn) {
   document.getElementById('view-' + v).classList.add('active');
   btn.classList.add('active');
   if (v === 'gallery') render();
+}
+
+// ─── Filtre galerie ─────────────────────────────────────────────────────────
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function getFilteredItems() {
+  const query = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+  return items
+    .map((item, idx) => ({ item, idx }))
+    .filter(({ item }) => {
+      const matchFilter = currentFilter === 'fav' ? item.fav : true;
+      const matchSearch = query ? item.title.toLowerCase().includes(query) : true;
+      return matchFilter && matchSearch;
+    });
 }
 
 // ─── OCR : ouverture du recadrage ──────────────────────────────────────────
@@ -370,11 +423,22 @@ function getStorageUsageKB() {
 // ─── Galerie ────────────────────────────────────────────────────────────────
 function render() {
   const grid = document.getElementById('display-grid');
-  grid.innerHTML = items.map((item, idx) => {
-    // Sécurisation XSS : on encode les attributs dangereux
+  const filtered = getFilteredItems();
+
+  if (filtered.length === 0) {
+    const msg = currentFilter === 'fav' ? 'Aucun favori pour l\'instant ⭐' : 'Aucun QR code trouvé';
+    grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:40px 20px; color:var(--mid); font-size:0.85rem; font-family:var(--mono);">${msg}</div>`;
+    updateStorageBar();
+    return;
+  }
+
+  grid.innerHTML = filtered.map(({ item, idx }) => {
     const safeTitle = escapeAttr(item.title);
+    const favStar = item.fav ? '⭐' : '☆';
+    const favClass = item.fav ? 'is-fav' : '';
     return `
-      <div class="qr-card" onclick="openFocus(${idx})">
+      <div class="qr-card ${favClass}" onclick="openFocus(${idx})">
+        <button class="fav-btn" onclick="toggleFav(event, ${idx})" title="Favori">${favStar}</button>
         <button class="del-btn" onclick="deleteItem(event, ${idx})" title="Supprimer">✕</button>
         <img src="${item.img}" alt="QR ${safeTitle}">
         <p style="font-size:0.7rem; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(item.title)}</p>
@@ -382,6 +446,14 @@ function render() {
     `;
   }).join('');
   updateStorageBar();
+}
+
+function toggleFav(event, idx) {
+  event.stopPropagation();
+  items[idx].fav = !items[idx].fav;
+  saveItems();
+  render();
+  showToast(items[idx].fav ? '⭐ Ajouté aux favoris' : 'Retiré des favoris');
 }
 
 function deleteItem(event, idx) {
@@ -406,10 +478,51 @@ function updateStorageBar() {
 function openFocus(idx) {
   const item = items[idx];
   if (!item) return;
-  focusImgSrc = item.img;
-  document.getElementById('focus-title').innerText = item.title; // innerText = sécurisé
-  document.getElementById('focus-qr-display').innerHTML = `<img src="${item.img}" style="width:200px; display:block;">`;
+  focusIdx = idx;
+  renderFocus();
   document.getElementById('focus-mode').style.display = 'flex';
+}
+
+function renderFocus() {
+  const filtered = getFilteredItems();
+  const posInFiltered = filtered.findIndex(f => f.idx === focusIdx);
+  const item = items[focusIdx];
+  if (!item) return;
+
+  focusImgSrc = item.img;
+  document.getElementById('focus-title').innerText = item.title;
+  document.getElementById('focus-qr-display').innerHTML = `<img src="${item.img}" style="width:200px; display:block;">`;
+
+  // Compteur
+  const total = filtered.length || items.length;
+  const pos = posInFiltered >= 0 ? posInFiltered + 1 : '?';
+  document.getElementById('nav-counter').innerText = `${pos} / ${total}`;
+
+  // Boutons nav
+  const hasPrev = posInFiltered > 0;
+  const hasNext = posInFiltered < filtered.length - 1;
+  document.getElementById('nav-prev').disabled = !hasPrev;
+  document.getElementById('nav-next').disabled = !hasNext;
+
+  // Favori
+  document.getElementById('focus-fav-btn').innerText = item.fav ? '⭐' : '☆';
+}
+
+function navigateFocus(dir) {
+  const filtered = getFilteredItems();
+  const posInFiltered = filtered.findIndex(f => f.idx === focusIdx);
+  const newPos = posInFiltered + dir;
+  if (newPos < 0 || newPos >= filtered.length) return;
+  focusIdx = filtered[newPos].idx;
+  renderFocus();
+}
+
+function toggleFocusFav() {
+  items[focusIdx].fav = !items[focusIdx].fav;
+  saveItems();
+  renderFocus();
+  render();
+  showToast(items[focusIdx].fav ? '⭐ Ajouté aux favoris' : 'Retiré des favoris');
 }
 
 function closeFocus() { document.getElementById('focus-mode').style.display = 'none'; }
