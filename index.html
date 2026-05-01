@@ -77,19 +77,29 @@ input[type="text"]:focus, textarea:focus { border-color:var(--ink); box-shadow: 
 /* --- FULLSCREEN FOCUS MODE --- */
 .focus-overlay { 
     position: fixed; top:0; left:0; width:100%; height:100%; 
-    background: rgba(245, 242, 235, 0.95); backdrop-filter: blur(8px);
+    background: rgba(245, 242, 235, 0.98); backdrop-filter: blur(10px);
     z-index: 200; display: none; flex-direction: column; align-items:center; justify-content: center;
     padding: 20px; animation: fadeIn 0.2s ease;
 }
+.focus-container {
+    display: flex; align-items: center; justify-content: center; gap: 15px; width: 100%; max-width: 500px;
+}
+.nav-arrow {
+    background: var(--ink); color: white; border: none; width: 45px; height: 45px; 
+    border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem; transition: 0.2s; flex-shrink: 0;
+}
+.nav-arrow:active { transform: scale(0.9); opacity: 0.8; }
+
 .focus-card {
     background: var(--paper); border: 2px solid var(--ink); border-radius: 30px;
-    padding: 30px 20px; width: 100%; max-width: 360px;
+    padding: 30px 20px; width: 100%; flex: 1;
     display: flex; flex-direction: column; align-items: center; gap: 20px;
     box-shadow: 0 20px 50px rgba(0,0,0,0.1); position: relative;
 }
 .focus-qr-box { background: white; padding: 15px; border-radius: 15px; box-shadow: inset 0 0 0 1px var(--border); }
 .focus-qr-box img { width: 220px; height: 220px; display: block; }
-.focus-title { font-size: 1.4rem; font-weight: 800; text-align: center; max-width: 90%; word-break: break-all; }
+.focus-title { font-size: 1.3rem; font-weight: 800; text-align: center; max-width: 90%; word-break: break-all; }
 .focus-fav-btn { position: absolute; top: 20px; right: 20px; font-size: 1.8rem; background: none; border: none; cursor: pointer; color: var(--accent); }
 
 .btn-close { 
@@ -99,6 +109,13 @@ input[type="text"]:focus, textarea:focus { border-color:var(--ink); box-shadow: 
 
 .toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:var(--ink); color:white; padding:12px 24px; border-radius:50px; font-size:0.8rem; z-index:1000; opacity:0; transition:0.3s; pointer-events:none; }
 .toast.show { opacity:1; transform:translateX(-50%) translateY(-10px); }
+
+/* Mobile optimization for arrows */
+@media (max-width: 480px) {
+    .focus-container { gap: 8px; }
+    .nav-arrow { width: 35px; height: 35px; font-size: 1rem; }
+    .focus-qr-box img { width: 180px; height: 180px; }
+}
 </style>
 </head>
 <body>
@@ -114,18 +131,24 @@ input[type="text"]:focus, textarea:focus { border-color:var(--ink); box-shadow: 
   </nav>
 </header>
 
-<!-- OVERLAY FOCUS (PLEIN ÉCRAN) -->
+<!-- OVERLAY FOCUS MIS À JOUR AVEC NAVIGATION -->
 <div id="focus-mode" class="focus-overlay">
-    <div class="focus-card">
-        <button class="focus-fav-btn" id="focus-fav-toggle">☆</button>
-        <h2 id="focus-title" class="focus-title">Titre du QR</h2>
-        <div class="focus-qr-box" id="focus-qr-display"></div>
-        <p id="focus-text" style="font-family:var(--mono); font-size:0.75rem; color:var(--mid); text-align:center; max-width:250px; word-break:break-all"></p>
+    <div class="focus-container">
+        <button class="nav-arrow" onclick="navFocus(-1)">←</button>
         
-        <div style="display:flex; gap:10px; width:100%">
-            <button class="btn-action" style="background:var(--ink); color:white" id="focus-dl">Télécharger</button>
-            <button class="btn-action" style="border-color:#ff4444; color:#ff4444" id="focus-del">Supprimer</button>
+        <div class="focus-card">
+            <button class="focus-fav-btn" id="focus-fav-toggle">☆</button>
+            <h2 id="focus-title" class="focus-title">Titre</h2>
+            <div class="focus-qr-box" id="focus-qr-display"></div>
+            <p id="focus-text" style="font-family:var(--mono); font-size:0.75rem; color:var(--mid); text-align:center; max-width:250px; word-break:break-all"></p>
+            
+            <div style="display:flex; gap:10px; width:100%">
+                <button class="btn-action" style="background:var(--ink); color:white" id="focus-dl">Télécharger</button>
+                <button class="btn-action" style="border-color:#ff4444; color:#ff4444" id="focus-del">Supprimer</button>
+            </div>
         </div>
+
+        <button class="nav-arrow" onclick="navFocus(1)">→</button>
     </div>
     <button class="btn-close" onclick="closeFocus()">Retour à la galerie</button>
 </div>
@@ -135,11 +158,11 @@ input[type="text"]:focus, textarea:focus { border-color:var(--ink); box-shadow: 
     <div class="create-heading">Générer un<br><span style="color:var(--accent)">QR Code</span></div>
     <div class="field-group">
       <label>Nom du QR</label>
-      <input type="text" id="in-title" placeholder="Nom du client ou sujet..." maxlength="25">
+      <input type="text" id="in-title" placeholder="Nom du client..." maxlength="25">
     </div>
     <div class="field-group">
       <label>Lien ou Texte</label>
-      <textarea id="in-text" rows="4" placeholder="Collez l'URL ou le texte ici..."></textarea>
+      <textarea id="in-text" rows="4" placeholder="URL ou texte..."></textarea>
     </div>
     <button class="btn-generate" onclick="createNew()">
       <span>Enregistrer dans la galerie</span>
@@ -150,7 +173,6 @@ input[type="text"]:focus, textarea:focus { border-color:var(--ink); box-shadow: 
 
 <main id="view-gallery" class="view">
   <div class="gallery-wrap">
-    
     <div class="backup-zone">
         <button class="btn-action" onclick="exportData()">💾 Sauvegarder (.json)</button>
         <label class="btn-action" style="border-style: dashed; border-color: var(--mid);">
@@ -158,19 +180,16 @@ input[type="text"]:focus, textarea:focus { border-color:var(--ink); box-shadow: 
             <input type="file" style="display:none" accept=".json" onchange="importData(event)">
         </label>
     </div>
-
     <div class="search-bar">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      <input type="text" id="q-search" placeholder="Rechercher par nom..." oninput="render()">
+      <input type="text" id="q-search" placeholder="Rechercher..." oninput="render()">
     </div>
-
     <div class="tool-row">
         <div style="display:flex; gap:5px">
             <button class="f-btn active" id="f-all" onclick="setFilter('all')" style="padding:6px 15px; border-radius:20px; border:1px solid var(--border); font-size:0.7rem; font-weight:700; background:white; cursor:pointer;">Tous</button>
             <button class="f-btn" id="f-fav" onclick="setFilter('fav')" style="padding:6px 15px; border-radius:20px; border:1px solid var(--border); font-size:0.7rem; font-weight:700; background:white; cursor:pointer;">★ Favoris</button>
         </div>
     </div>
-
     <div id="display-grid" class="gallery-grid"></div>
     <div id="empty-msg" class="empty-state" style="display:none; text-align:center; padding:40px; color:var(--mid); font-size:0.8rem;">Aucun QR code trouvé.</div>
   </div>
@@ -181,7 +200,8 @@ input[type="text"]:focus, textarea:focus { border-color:var(--ink); box-shadow: 
 <script>
 let items = JSON.parse(localStorage.getItem('qr_items_v1') || '[]');
 let currentFilter = 'all';
-let currentFocusId = null;
+let currentFocusIdx = -1; // Utilise l'index plutôt que l'ID pour faciliter la navigation
+let filteredList = []; // Liste temporaire pour la navigation
 
 function save() {
     localStorage.setItem('qr_items_v1', JSON.stringify(items));
@@ -199,24 +219,22 @@ function switchView(v) {
 function createNew() {
     const t = document.getElementById('in-title').value.trim();
     const txt = document.getElementById('in-text').value.trim();
-    if(!t || !txt) return showToast("Complétez les champs !");
-
+    if(!t || !txt) return showToast("Champs requis !");
     const tempDiv = document.createElement('div');
     new QRCode(tempDiv, { text: txt, width: 400, height: 400, correctLevel : QRCode.CorrectLevel.H });
-
     setTimeout(() => {
         const imgData = tempDiv.querySelector('img') ? tempDiv.querySelector('img').src : tempDiv.querySelector('canvas').toDataURL("image/png");
         items.unshift({ id: Date.now(), title: t, text: txt, img: imgData, fav: false });
         save();
         document.getElementById('in-title').value = '';
         document.getElementById('in-text').value = '';
-        showToast("Ajouté à la galerie !");
+        showToast("QR Ajouté !");
     }, 200);
 }
 
 function render() {
     const query = document.getElementById('q-search').value.toLowerCase();
-    let filtered = items.filter(i => {
+    filteredList = items.filter(i => {
         const mS = i.title.toLowerCase().includes(query);
         const mF = currentFilter === 'all' || i.fav;
         return mS && mF;
@@ -224,12 +242,12 @@ function render() {
 
     const cont = document.getElementById('display-grid');
     cont.innerHTML = '';
-    document.getElementById('empty-msg').style.display = filtered.length === 0 ? 'block' : 'none';
+    document.getElementById('empty-msg').style.display = filteredList.length === 0 ? 'block' : 'none';
 
-    filtered.forEach(item => {
+    filteredList.forEach((item, index) => {
         const div = document.createElement('div');
         div.className = 'qr-card';
-        div.onclick = () => openFocus(item.id);
+        div.onclick = () => openFocus(index);
         div.innerHTML = `
             <button class="fav-dot" onclick="event.stopPropagation(); toggleFav(${item.id})">${item.fav?'★':'☆'}</button>
             <img src="${item.img}" style="width:100%; border-radius:8px">
@@ -239,26 +257,54 @@ function render() {
     });
 }
 
-/* --- LOGIQUE FOCUS MODE --- */
-function openFocus(id) {
-    const item = items.find(i => i.id === id);
-    if(!item) return;
-    currentFocusId = id;
+function openFocus(index) {
+    if (index < 0 || index >= filteredList.length) return;
+    currentFocusIdx = index;
+    const item = filteredList[index];
     
     document.getElementById('focus-title').textContent = item.title;
     document.getElementById('focus-text').textContent = item.text;
     document.getElementById('focus-qr-display').innerHTML = `<img src="${item.img}">`;
     document.getElementById('focus-fav-toggle').textContent = item.fav ? '★' : '☆';
     
-    // Configurer boutons
-    document.getElementById('focus-fav-toggle').onclick = () => { toggleFav(id); openFocus(id); };
-    document.getElementById('focus-del').onclick = () => { if(confirm("Supprimer ce QR ?")) { deleteItem(id); closeFocus(); } };
+    document.getElementById('focus-fav-toggle').onclick = () => { 
+        const realIdx = items.findIndex(i => i.id === item.id);
+        items[realIdx].fav = !items[realIdx].fav;
+        save();
+        openFocus(currentFocusIdx); // Rafraîchir l'état
+    };
+    
+    document.getElementById('focus-del').onclick = () => { 
+        if(confirm("Supprimer ce QR ?")) {
+            items = items.filter(i => i.id !== item.id);
+            save();
+            render(); 
+            if (filteredList.length > 0) {
+                // Aller au précédent si on supprime, sinon fermer
+                index > 0 ? openFocus(index - 1) : openFocus(0);
+            } else {
+                closeFocus();
+            }
+        } 
+    };
+
     document.getElementById('focus-dl').onclick = () => {
         const a = document.createElement('a'); a.href = item.img; a.download = `${item.title}.png`; a.click();
     };
 
     document.getElementById('focus-mode').style.display = 'flex';
-    document.body.style.overflow = 'hidden'; // Bloque le scroll derrière
+    document.body.style.overflow = 'hidden';
+}
+
+function navFocus(dir) {
+    let newIdx = currentFocusIdx + dir;
+    if (newIdx >= 0 && newIdx < filteredList.length) {
+        openFocus(newIdx);
+    } else if (newIdx < 0) {
+        openFocus(filteredList.length - 1); // Boucle vers la fin
+    } else {
+        openFocus(0); // Boucle vers le début
+    }
 }
 
 function closeFocus() {
@@ -269,25 +315,21 @@ function closeFocus() {
 
 function setFilter(f) {
     currentFilter = f;
-    document.querySelectorAll('.f-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('f-' + f).style.background = 'var(--ink)';
-    document.getElementById('f-' + f).style.color = 'white';
-    // Reset les autres boutons visuellement
-    document.querySelectorAll('.f-btn').forEach(b => {
-        if(b.id !== 'f-'+f) { b.style.background = 'white'; b.style.color = 'var(--ink)'; }
-    });
+    const btnAll = document.getElementById('f-all');
+    const btnFav = document.getElementById('f-fav');
+    if (f === 'all') {
+        btnAll.style.background = 'var(--ink)'; btnAll.style.color = 'white';
+        btnFav.style.background = 'white'; btnFav.style.color = 'var(--ink)';
+    } else {
+        btnFav.style.background = 'var(--ink)'; btnFav.style.color = 'white';
+        btnAll.style.background = 'white'; btnAll.style.color = 'var(--ink)';
+    }
     render();
 }
 
 function toggleFav(id) {
     const idx = items.findIndex(i => i.id === id);
     items[idx].fav = !items[idx].fav;
-    save(); 
-    if(document.getElementById('focus-mode').style.display !== 'flex') render();
-}
-
-function deleteItem(id) {
-    items = items.filter(i => i.id !== id);
     save(); render();
 }
 
@@ -326,7 +368,6 @@ function showToast(msg) {
     setTimeout(() => t.classList.remove('show'), 2000);
 }
 
-// Init
 document.getElementById('b-total').textContent = items.length;
 </script>
 </body>
