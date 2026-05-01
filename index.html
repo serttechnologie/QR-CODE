@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>QRgen Studio — V1</title>
+<title>QRgen Studio</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
@@ -58,7 +58,7 @@ input, textarea { font-family:var(--mono); font-size:16px; background:var(--pape
 .focus-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(245, 242, 235, 0.98); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 200; display: none; flex-direction: column; align-items:center; justify-content: center; padding: 20px; }
 .focus-container { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; max-width: 450px; }
 .nav-arrow { background: var(--ink); color: white; border: none; width: 42px; height: 42px; border-radius: 50%; flex-shrink:0; cursor: pointer; font-weight: bold; }
-.focus-card { background: var(--paper); border: 2px solid var(--ink); border-radius: 24px; padding: 30px 15px; width: 100%; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 15px; position: relative; box-shadow: 0 15px 40px rgba(0,0,0,0.1); }
+.focus-card { background: var(--paper); border: 2px solid var(--ink); border-radius: 24px; padding: 40px 15px 30px 15px; width: 100%; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 20px; position: relative; box-shadow: 0 15px 40px rgba(0,0,0,0.1); }
 .qr-display-area { background: white; padding: 12px; border-radius: 12px; border: 1px solid var(--border); width: 220px; height: 220px; display: flex; align-items: center; justify-content: center; }
 .qr-display-area img { width: 100%; height: 100%; }
 .focus-fav-toggle { position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 1.8rem; color: var(--accent); cursor: pointer; }
@@ -90,17 +90,17 @@ input, textarea { font-family:var(--mono); font-size:16px; background:var(--pape
         <button class="nav-arrow" onclick="navFocus(-1)">←</button>
         <div class="focus-card">
             <button class="focus-fav-toggle" id="focus-fav-btn">☆</button>
-            <h2 id="focus-title" style="font-size:1.1rem; font-weight:800; text-align:center; max-width: 80%;">Titre</h2>
+            <h2 id="focus-title" style="font-size:1.2rem; font-weight:800; text-align:center; max-width: 80%;">Titre</h2>
             <div class="qr-display-area" id="focus-qr-display"></div>
-            <p id="focus-text" style="font-family:var(--mono); font-size:0.65rem; color:var(--mid); text-align:center; word-break:break-all;"></p>
-            <div style="display:flex; gap:8px; width:100%">
+            <!-- LE TEXTE A ÉTÉ SUPPRIMÉ ICI -->
+            <div style="display:flex; gap:8px; width:100%; margin-top: 10px;">
                 <button class="btn-small" style="background:var(--ink); color:white" id="focus-dl">Télécharger</button>
                 <button class="btn-small" style="border-color:#ff4444; color:#ff4444" id="focus-del">Supprimer</button>
             </div>
         </div>
         <button class="nav-arrow" onclick="navFocus(1)">→</button>
     </div>
-    <button class="btn-main" style="margin-top:20px; padding:12px 30px;" onclick="closeFocus()">Fermer</button>
+    <button class="btn-main" style="margin-top:20px; padding:12px 40px; border-radius: 50px;" onclick="closeFocus()">Fermer</button>
 </div>
 
 <!-- VUE CREATION -->
@@ -166,7 +166,7 @@ function createNew() {
     const tempArea = document.getElementById('temp-qr');
     tempArea.innerHTML = ""; 
     
-    new QRCode(tempArea, { text: txt, width: 400, height: 400, correctLevel: QRCode.CorrectLevel.H });
+    new QRCode(tempArea, { text: txt, width: 400, height: 400, correctLevel: QRCode.Level ? QRCode.Level.H : 3 });
 
     setTimeout(() => {
         const canvas = tempArea.querySelector('canvas');
@@ -217,7 +217,6 @@ function openFocus(index) {
     const item = filteredList[index];
     
     document.getElementById('focus-title').textContent = item.title;
-    document.getElementById('focus-text').textContent = item.text;
     document.getElementById('focus-qr-display').innerHTML = `<img src="${item.img}">`;
     document.getElementById('focus-fav-btn').textContent = item.fav ? '★' : '☆';
     
@@ -258,9 +257,11 @@ function closeFocus() {
 
 function toggleFav(id) {
     const idx = items.findIndex(x => x.id === id);
-    items[idx].fav = !items[idx].fav;
-    save();
-    if(document.getElementById('focus-mode').style.display !== 'flex') render();
+    if(idx !== -1) {
+        items[idx].fav = !items[idx].fav;
+        save();
+        if(document.getElementById('focus-mode').style.display !== 'flex') render();
+    }
 }
 
 function exportData() {
