@@ -9,6 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <style>
 :root {
@@ -227,7 +228,12 @@ input:focus, textarea:focus { border-color: var(--accent); }
     <button class="filter-btn" id="filter-fav" onclick="setFilter('fav', this)">⭐ Favoris</button>
   </div>
   <div class="io-toolbar">
-    <button class="io-btn" onclick="exportJSON()">⬇ Exporter .json</button>
+    <button class="io-btn" id="drive-btn" onclick="toggleDrive()" style="display:flex;align-items:center;justify-content:center;gap:6px">
+      <span id="drive-dot" style="width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0;transition:background 0.3s"></span>
+      <span id="drive-label">Drive</span>
+    </button>
+    <button class="io-btn" onclick="exportToDrive()">☁ Sauvegarder Drive</button>
+    <button class="io-btn" onclick="exportJSON()">⬇ Local .json</button>
     <button class="io-btn" onclick="document.getElementById('import-input').click()">⬆ Importer .json</button>
     <input type="file" id="import-input" style="display:none" accept=".json" onchange="importJSON(event)">
   </div>
@@ -670,13 +676,111 @@ function downloadFocus() {
 }
 
 // ─── Export / Import ─────────────────────────────────────────────────────────
+// ─── Google Drive ─────────────────────────────────────────────────────────────
+const DRIVE_CLIENT_ID = '510292526417-007bs9oh8tdif3hgkr4ov33ns7ctl5kq.apps.googleusercontent.com';
+const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_FILE_NAME = 'qr-pro-backup.json';
+let driveToken = null;
+let driveFileId = null;
+let driveTokenClient = null;
+let driveExportPending = false;
+
+window.addEventListener('load', () => {
+  const wait = setInterval(() => {
+    if (window.google && google.accounts) {
+      clearInterval(wait);
+      driveTokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: DRIVE_CLIENT_ID,
+        scope: DRIVE_SCOPES,
+        callback: onDriveToken,
+      });
+      const saved = sessionStorage.getItem('qrpro_token');
+      if (saved) { driveToken = saved; setDriveUI(true); }
+      else setDriveUI(false);
+    }
+  }, 200);
+});
+
+function onDriveToken(resp) {
+  if (resp.error) { showToast('Connexion annulée'); setDriveUI(false); return; }
+  driveToken = resp.access_token;
+  sessionStorage.setItem('qrpro_token', driveToken);
+  setDriveUI(true);
+  showToast('✓ Connecté à Google Drive');
+  if (driveExportPending) { driveExportPending = false; exportToDrive(); }
+}
+
+function setDriveUI(connected) {
+  const dot = document.getElementById('drive-dot');
+  const label = document.getElementById('drive-label');
+  if (!dot) return;
+  dot.style.background = connected ? '#6FCF97' : '#aaa';
+  label.textContent = connected ? 'Drive connecté' : 'Drive';
+}
+
+function toggleDrive() {
+  if (driveToken) {
+    google.accounts.oauth2.revoke(driveToken, () => {});
+    driveToken = null; driveFileId = null;
+    sessionStorage.removeItem('qrpro_token');
+    setDriveUI(false);
+    showToast('Déconnecté de Drive');
+  } else {
+    if (!driveTokenClient) { showToast('Google en chargement…'); return; }
+    driveTokenClient.requestAccessToken();
+  }
+}
+
+async function driveReq(url, opts = {}) {
+  const r = await fetch(url, { ...opts, headers: { 'Authorization': 'Bearer ' + driveToken, ...(opts.headers||{}) } });
+  if (r.status === 401) { driveToken = null; sessionStorage.removeItem('qrpro_token'); setDriveUI(false); throw new Error('Token expiré — reconnecte-toi'); }
+  return r;
+}
+
+async function findDriveFile() {
+  const q = encodeURIComponent(`name='${DRIVE_FILE_NAME}' and trashed=false`);
+  const r = await driveReq(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id)`);
+  const d = await r.json();
+  return d.files && d.files.length ? d.files[0].id : null;
+}
+
+async function exportToDrive() {
+  if (!driveToken) {
+    driveExportPending = true;
+    if (!driveTokenClient) { showToast('Google en chargement…'); return; }
+    driveTokenClient.requestAccessToken();
+    return;
+  }
+  if (items.length === 0) { showToast('Aucun QR à exporter'); return; }
+  showToast('Sauvegarde sur Drive…');
+  try {
+    const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+    if (!driveFileId) driveFileId = await findDriveFile();
+    if (driveFileId) {
+      await driveReq(
+        `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,
+        { method: 'PATCH', body: blob, headers: { 'Content-Type': 'application/json' } }
+      );
+    } else {
+      const meta = { name: DRIVE_FILE_NAME, mimeType: 'application/json' };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+      form.append('file', blob);
+      const r = await driveReq('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', body: form });
+      const d = await r.json();
+      driveFileId = d.id;
+    }
+    showToast('✓ Sauvegardé sur Google Drive !');
+  } catch(e) { showToast('Erreur : ' + e.message); }
+}
+
 function exportJSON() {
   if (items.length === 0) return showToast('Aucun QR à exporter');
   const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = 'qr-pro-backup.json'; a.click();
   URL.revokeObjectURL(a.href);
-  showToast('✓ Export réussi !');
+  showToast('✓ Export local réussi !');
 }
 
 function importJSON(event) {
