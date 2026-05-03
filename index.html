@@ -64,17 +64,17 @@ input:focus, textarea:focus { border-color: var(--accent); }
 /* ── Galerie ── */
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 12px;
-  padding: 15px;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  padding: 10px;
 }
 
 /* ── QR Card ── */
 .qr-card {
   background: var(--paper);
   border: 1.5px solid var(--border);
-  border-radius: 14px;
-  padding: 10px;
+  border-radius: 10px;
+  padding: 7px;
   position: relative;
   text-align: center;
   cursor: grab;
@@ -83,8 +83,8 @@ input:focus, textarea:focus { border-color: var(--accent); }
   -webkit-user-select: none;
 }
 .qr-card:hover { border-color: var(--ink); transform: translateY(-2px); }
-.qr-card img { width:100%; border-radius:6px; margin-bottom:8px; pointer-events: none; }
-.del-btn { position: absolute; top: 6px; right: 6px; background: var(--ink); border: none; border-radius: 50%; width: 22px; height: 22px; color: white; font-size: 0.7rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.qr-card img { width:100%; border-radius:4px; margin-bottom:5px; pointer-events: none; }
+.del-btn { position: absolute; top: 4px; right: 4px; background: var(--ink); border: none; border-radius: 50%; width: 18px; height: 18px; color: white; font-size: 0.6rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 
 /* ── Drag & Drop états ── */
 .qr-card.dragging {
@@ -124,7 +124,7 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .storage-label { font-family: var(--mono); font-size: 0.65rem; color: var(--mid); white-space: nowrap; }
 
 /* Favoris */
-.fav-btn { position: absolute; top: 6px; left: 8px; background: none; border: none; font-size: 1rem; cursor: pointer; opacity: 1; line-height: 1; padding: 0; }
+.fav-btn { position: absolute; top: 4px; left: 5px; background: none; border: none; font-size: 1rem; cursor: pointer; opacity: 1; line-height: 1; padding: 0; }
 
 /* Galerie toolbar */
 .gallery-toolbar { padding: 10px 15px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -156,6 +156,16 @@ input:focus, textarea:focus { border-color: var(--accent); }
 #temp-qr { position: absolute; left: -9999px; }
 .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--ink); color:white; padding:10px 20px; border-radius:50px; font-size:0.75rem; z-index:3000; opacity:0; transition:0.3s; pointer-events:none; white-space: nowrap; }
 .toast.show { opacity:1; }
+
+/* ── Modal suppression ── */
+#del-modal { position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:300; display:none; align-items:center; justify-content:center; }
+.del-modal-box { background:var(--paper); border:2px solid var(--ink); border-radius:20px; padding:28px 24px; max-width:340px; width:90%; text-align:center; box-shadow:0 12px 40px rgba(0,0,0,0.18); }
+.del-modal-box h3 { font-size:1.1rem; font-weight:800; margin-bottom:8px; }
+.del-modal-box p { font-size:0.82rem; color:var(--mid); margin-bottom:20px; line-height:1.5; }
+.del-modal-actions { display:flex; flex-direction:column; gap:8px; }
+.del-btn-drive { background:var(--accent); color:white; border:none; border-radius:10px; padding:13px; font-family:var(--sans); font-size:0.88rem; font-weight:700; cursor:pointer; }
+.del-btn-local { background:var(--ink); color:white; border:none; border-radius:10px; padding:13px; font-family:var(--sans); font-size:0.88rem; font-weight:700; cursor:pointer; }
+.del-btn-cancel { background:none; color:var(--mid); border:1.5px solid var(--border); border-radius:10px; padding:11px; font-family:var(--sans); font-size:0.85rem; cursor:pointer; }
 </style>
 </head>
 <body>
@@ -348,7 +358,7 @@ function addDragEvents(card, realIdx) {
       border: 2px dashed var(--accent);
       pointer-events: none;
       z-index: 9999;
-      border-radius: 14px;
+      border-radius: 10px;
       transform: scale(1.05);
       box-shadow: 0 12px 32px rgba(0,0,0,0.2);
       transition: none;
@@ -600,10 +610,7 @@ function render() {
     // Bouton supprimer
     card.querySelector('.del-btn').addEventListener('click', (e) => {
       e.stopPropagation();
-      if (!confirm(`Supprimer "${items[realIdx].title}" ?`)) return;
-      items.splice(realIdx, 1);
-      saveItems(); updateCount(); render();
-      showToast('QR supprimé');
+      showDeleteModal(realIdx);
     });
 
     // Clic pour ouvrir le focus (desktop seulement — le touch est géré dans addDragEvents)
@@ -855,6 +862,51 @@ function importJSON(event) {
 }
 
 
+// ─── Suppression définitive ──────────────────────────────────────────────────
+let pendingDeleteIdx = null;
+
+function showDeleteModal(idx) {
+  pendingDeleteIdx = idx;
+  const title = items[idx] ? items[idx].title : '';
+  document.getElementById('del-modal-title').textContent = `Supprimer "${title}" ?`;
+  document.getElementById('del-modal').style.display = 'flex';
+}
+function closeDeleteModal() {
+  document.getElementById('del-modal').style.display = 'none';
+  pendingDeleteIdx = null;
+}
+async function confirmDelete(alsoFromDrive) {
+  if (pendingDeleteIdx === null) return;
+  const idx = pendingDeleteIdx;
+  closeDeleteModal();
+
+  if (alsoFromDrive && driveToken) {
+    try {
+      // Lire Drive, enlever l'item, réécrire
+      if (!driveFileId) driveFileId = await findDriveFile();
+      if (driveFileId) {
+        const r = await driveReq(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
+        let driveItems = await r.json();
+        if (Array.isArray(driveItems)) {
+          const removedId = items[idx].id;
+          driveItems = driveItems.filter(i => i.id !== removedId);
+          await writeToDrive(driveItems);
+        }
+      }
+      showToast('✓ Supprimé localement et sur Drive');
+    } catch(e) {
+      showToast('Supprimé localement — erreur Drive : ' + e.message);
+    }
+  } else if (alsoFromDrive && !driveToken) {
+    showToast('Supprimé localement — connecte Drive pour supprimer aussi du Drive');
+  } else {
+    showToast('✓ QR supprimé localement');
+  }
+
+  items.splice(idx, 1);
+  saveItems(); updateCount(); render();
+}
+
 // ─── Utilitaires ─────────────────────────────────────────────────────────────
 function escapeHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -871,5 +923,18 @@ function showToast(m) {
 // ─── Init ─────────────────────────────────────────────────────────────────────
 updateCount();
 </script>
+<!-- Modal suppression -->
+<div id="del-modal">
+  <div class="del-modal-box">
+    <h3 id="del-modal-title">Supprimer ce QR ?</h3>
+    <p>Veux-tu aussi le supprimer de Google Drive ?</p>
+    <div class="del-modal-actions">
+      <button class="del-btn-drive" onclick="confirmDelete(true)">🗑 Supprimer partout (local + Drive)</button>
+      <button class="del-btn-local" onclick="confirmDelete(false)">Supprimer uniquement en local</button>
+      <button class="del-btn-cancel" onclick="closeDeleteModal()">Annuler</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
