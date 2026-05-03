@@ -52,6 +52,7 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .ocr-step.active .ocr-step-dot { background: var(--accent); animation: pulse 1s infinite; }
 .ocr-step.done .ocr-step-dot { background: #6fcf97; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
 .ocr-bar-wrap { width: 260px; height: 4px; background: #333; border-radius: 2px; overflow: hidden; }
 .ocr-bar { height: 100%; width: 0%; background: var(--accent); border-radius: 2px; transition: width 0.3s; }
 
@@ -232,9 +233,9 @@ input:focus, textarea:focus { border-color: var(--accent); }
       <span id="drive-dot" style="width:8px;height:8px;border-radius:50%;background:#aaa;flex-shrink:0;transition:background 0.3s"></span>
       <span id="drive-label">Drive</span>
     </button>
-    <button class="io-btn" onclick="exportToDrive()">☁ Sauvegarder Drive</button>
-    <button class="io-btn" onclick="exportJSON()">⬇ Local .json</button>
-    <button class="io-btn" onclick="document.getElementById('import-input').click()">⬆ Importer .json</button>
+    <button class="io-btn" id="sync-btn" onclick="syncDrive()" style="display:flex;align-items:center;justify-content:center;gap:6px">
+      <span id="sync-icon">⟳</span> Synchroniser
+    </button>
     <input type="file" id="import-input" style="display:none" accept=".json" onchange="importJSON(event)">
   </div>
   <!-- Indicateur glisser-déposer -->
@@ -675,15 +676,14 @@ function downloadFocus() {
   showToast('Téléchargement lancé');
 }
 
-// ─── Export / Import ─────────────────────────────────────────────────────────
-// ─── Google Drive ─────────────────────────────────────────────────────────────
+// ─── Google Drive + Synchronisation ──────────────────────────────────────────
 const DRIVE_CLIENT_ID = '510292526417-007bs9oh8tdif3hgkr4ov33ns7ctl5kq.apps.googleusercontent.com';
 const DRIVE_SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const DRIVE_FILE_NAME = 'qr-pro-backup.json';
 let driveToken = null;
 let driveFileId = null;
 let driveTokenClient = null;
-let driveExportPending = false;
+let driveSyncPending = false;
 
 window.addEventListener('load', () => {
   const wait = setInterval(() => {
@@ -707,7 +707,7 @@ function onDriveToken(resp) {
   sessionStorage.setItem('qrpro_token', driveToken);
   setDriveUI(true);
   showToast('✓ Connecté à Google Drive');
-  if (driveExportPending) { driveExportPending = false; exportToDrive(); }
+  if (driveSyncPending) { driveSyncPending = false; syncDrive(); }
 }
 
 function setDriveUI(connected) {
@@ -733,7 +733,10 @@ function toggleDrive() {
 
 async function driveReq(url, opts = {}) {
   const r = await fetch(url, { ...opts, headers: { 'Authorization': 'Bearer ' + driveToken, ...(opts.headers||{}) } });
-  if (r.status === 401) { driveToken = null; sessionStorage.removeItem('qrpro_token'); setDriveUI(false); throw new Error('Token expiré — reconnecte-toi'); }
+  if (r.status === 401) {
+    driveToken = null; sessionStorage.removeItem('qrpro_token'); setDriveUI(false);
+    throw new Error('Token expiré — reconnecte-toi');
+  }
   return r;
 }
 
@@ -744,43 +747,92 @@ async function findDriveFile() {
   return d.files && d.files.length ? d.files[0].id : null;
 }
 
-async function exportToDrive() {
+async function writeToDrive(data) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  if (!driveFileId) driveFileId = await findDriveFile();
+  if (driveFileId) {
+    await driveReq(
+      `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,
+      { method: 'PATCH', body: blob, headers: { 'Content-Type': 'application/json' } }
+    );
+  } else {
+    const meta = { name: DRIVE_FILE_NAME, mimeType: 'application/json' };
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
+    form.append('file', blob);
+    const r = await driveReq('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', body: form });
+    const d = await r.json();
+    driveFileId = d.id;
+  }
+}
+
+async function syncDrive() {
+  // Si pas connecté → connexion d'abord, sync après
   if (!driveToken) {
-    driveExportPending = true;
+    driveSyncPending = true;
     if (!driveTokenClient) { showToast('Google en chargement…'); return; }
     driveTokenClient.requestAccessToken();
     return;
   }
-  if (items.length === 0) { showToast('Aucun QR à exporter'); return; }
-  showToast('Sauvegarde sur Drive…');
+
+  setSyncUI(true);
   try {
-    const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
+    // 1. Lire le fichier Drive
     if (!driveFileId) driveFileId = await findDriveFile();
+    let driveItems = [];
     if (driveFileId) {
-      await driveReq(
-        `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,
-        { method: 'PATCH', body: blob, headers: { 'Content-Type': 'application/json' } }
-      );
-    } else {
-      const meta = { name: DRIVE_FILE_NAME, mimeType: 'application/json' };
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(meta)], { type: 'application/json' }));
-      form.append('file', blob);
-      const r = await driveReq('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', { method: 'POST', body: form });
-      const d = await r.json();
-      driveFileId = d.id;
+      const r = await driveReq(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`);
+      const data = await r.json();
+      driveItems = Array.isArray(data) ? data : [];
     }
-    showToast('✓ Sauvegardé sur Google Drive !');
-  } catch(e) { showToast('Erreur : ' + e.message); }
+
+    // 2. Fusion par ID unique — union des deux listes sans doublon
+    const localIds = new Set(items.map(i => i.id));
+    const driveIds = new Set(driveItems.map(i => i.id));
+
+    const onlyOnDrive = driveItems.filter(i => !localIds.has(i.id));   // manquants en local
+    const onlyOnLocal = items.filter(i => !driveIds.has(i.id));        // manquants sur Drive
+
+    const merged = [...items, ...onlyOnDrive]; // local + ce qui manquait depuis Drive
+
+    let msg = '';
+    if (onlyOnDrive.length === 0 && onlyOnLocal.length === 0) {
+      msg = '✓ Déjà synchronisé — rien à faire';
+    } else {
+      const parts = [];
+      if (onlyOnDrive.length) parts.push(`+${onlyOnDrive.length} chargé(s) depuis Drive`);
+      if (onlyOnLocal.length) parts.push(`+${onlyOnLocal.length} envoyé(s) vers Drive`);
+      msg = '✓ ' + parts.join(' · ');
+    }
+
+    // 3. Mettre à jour en local
+    items = merged;
+    saveItems();
+    updateCount();
+    render();
+
+    // 4. Mettre à jour Drive avec la liste complète fusionnée
+    await writeToDrive(merged);
+
+    showToast(msg);
+  } catch(e) {
+    showToast('Erreur sync : ' + e.message);
+  }
+  setSyncUI(false);
 }
 
-function exportJSON() {
-  if (items.length === 0) return showToast('Aucun QR à exporter');
-  const blob = new Blob([JSON.stringify(items, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob); a.download = 'qr-pro-backup.json'; a.click();
-  URL.revokeObjectURL(a.href);
-  showToast('✓ Export local réussi !');
+function setSyncUI(loading) {
+  const btn = document.getElementById('sync-btn');
+  const icon = document.getElementById('sync-icon');
+  if (!btn) return;
+  if (loading) {
+    btn.disabled = true;
+    icon.style.display = 'inline-block';
+    icon.style.animation = 'spin 0.8s linear infinite';
+  } else {
+    btn.disabled = false;
+    icon.style.animation = '';
+  }
 }
 
 function importJSON(event) {
@@ -801,6 +853,7 @@ function importJSON(event) {
   reader.readAsText(file);
   event.target.value = '';
 }
+
 
 // ─── Utilitaires ─────────────────────────────────────────────────────────────
 function escapeHtml(str) {
