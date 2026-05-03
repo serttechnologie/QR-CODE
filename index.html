@@ -530,7 +530,7 @@ function createNew() {
   tempArea.innerHTML = '';
   new QRCode(tempArea, { text: txt, width: 300, height: 300, correctLevel: QRCode.CorrectLevel.H });
   waitForQRCanvas(tempArea, (finalImg) => {
-    items.unshift({ id: Date.now(), title: t, img: finalImg, text: txt });
+    items.push({ id: Date.now(), title: t, img: finalImg, text: txt });
     saveItems(); updateCount();
     document.getElementById('in-title').value = '';
     document.getElementById('in-text').value = '';
